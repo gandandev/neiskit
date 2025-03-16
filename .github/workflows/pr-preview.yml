@@ -1,0 +1,85 @@
+name: PR Preview Package
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build-and-publish-preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm build
+
+      - name: Set preview version
+        id: preview-version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          PREVIEW_VERSION="${PACKAGE_VERSION}-pr.${PR_NUMBER}.$(date +'%Y%m%d%H%M%S')"
+          echo "preview_version=${PREVIEW_VERSION}" >> $GITHUB_OUTPUT
+          # Update package.json with preview version
+          node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '${PREVIEW_VERSION}'; fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n')"
+
+      - name: Publish preview package
+        run: npm publish --tag pr-${{ github.event.pull_request.number }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const previewVersion = '${{ steps.preview-version.outputs.preview_version }}';
+            const packageName = require('./package.json').name;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📦 프리뷰 패키지가 배포되었습니다!
+
+            이 PR의 프리뷰 버전이 npm에 배포되었습니다.
+
+            ### 설치
+
+            \`\`\`bash
+            # npm
+            npm install ${packageName}@${previewVersion}
+
+            # yarn
+            yarn add ${packageName}@${previewVersion}
+
+            # pnpm
+            pnpm add ${packageName}@${previewVersion}
+            \`\`\`
+
+            PR 태그로 설치할 수도 있습니다:
+
+            \`\`\`bash
+            npm install ${packageName}@pr-${{ github.event.pull_request.number }}
+            \`\`\`
+
+            이 프리뷰 패키지는 새로운 PR 프리뷰로 덮어써지거나 삭제될 때까지 유지됩니다.`
+            })
