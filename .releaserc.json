@@ -1,0 +1,52 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits",
+        "presetConfig": {
+          "types": [
+            { "type": "feat", "section": "✨ 기능 추가" },
+            { "type": "fix", "section": "🐛 버그 수정" },
+            { "type": "docs", "section": "📝 문서" },
+            { "type": "style", "section": "🎨 스타일" },
+            { "type": "refactor", "section": "♻️ 리팩토링" },
+            { "type": "perf", "section": "⚡ 성능 향상" },
+            { "type": "test", "section": "✅ 테스트" },
+            { "type": "build", "section": "🏗️ 빌드" },
+            { "type": "ci", "section": "⚙️ CI 설정" },
+            { "type": "chore", "section": "🔧 기타 작업" },
+            { "type": "revert", "section": "⏪ 롤백" }
+          ]
+        }
+      }
+    ],
+    "@semantic-release/changelog",
+    [
+      "@semantic-release/npm",
+      {
+        "npmPublish": true
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["package.json", "CHANGELOG.md"],
+        "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          { "path": "dist/*.zip", "label": "Compiled Build" },
+          { "path": "dist/*.tar.gz", "label": "Source Code" }
+        ],
+        "successComment": "🎉 **${nextRelease.version}** 버전이 릴리즈되었습니다! 🚀\n\n[GitHub Releases에서 확인하기](https://github.com/사용자명/neiskit/releases)",
+        "failTitle": "🚨 릴리즈 실패: ${nextRelease.version}"
+      }
+    ]
+  ]
+}
